@@ -1,3 +1,4 @@
+
 const sb=supabase.createClient(CFG.url,CFG.key),M=document.getElementById("m");
 function el(t,txt,cls){const e=document.createElement(t);if(txt!=null)e.textContent=txt;if(cls)e.className=cls;return e}
 function field(l,id,type,ta){const w=el("div");w.append(el("label",l));const i=el(ta?"textarea":"input");i.id=id;if(type)i.type=type;w.append(i);return w}
@@ -9,7 +10,7 @@ async function boot(){M.replaceChildren();const{data:{session}}=await sb.auth.ge
 function authView(){const msg=el("div",null,"mut");
  M.append(card(el("h3","Join or log in"),el("p","Providers must create an account and be verified before appearing in search.","mut"),
  field("Email","em","email"),field("Password (min 10 characters)","pw","password"),
- btn("Log in",async()=>{const{error}=await sb.auth.signInWithPassword({email:v("em"),password:document.getElementById("pw").value});error?msg.textContent="Login failed.":boot()}),document.createTextNode(" "),
+ btn("Log in",async()=>{const{error}=await sb.auth.signInWithPassword({email:v("em"),password:document.getElementById("pw").value});error?msg.textContent="Login failed: "+error.message:boot()}),document.createTextNode(" "),
  btn("Create account",async()=>{if(document.getElementById("pw").value.length<10){msg.textContent="Password too short.";return}
   const{error}=await sb.auth.signUp({email:v("em"),password:document.getElementById("pw").value});msg.textContent=error?("Could not sign up: "+error.message):"Check your email to confirm, then log in."},true),msg))}
 async function proView(u){const{data:p}=await sb.from("providers").select("*,provider_categories(category)").eq("id",u.id).maybeSingle();
