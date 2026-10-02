@@ -11,7 +11,7 @@ function authView(){const msg=el("div",null,"mut");
  field("Email","em","email"),field("Password (min 10 characters)","pw","password"),
  btn("Log in",async()=>{const{error}=await sb.auth.signInWithPassword({email:v("em"),password:document.getElementById("pw").value});error?msg.textContent="Login failed.":boot()}),document.createTextNode(" "),
  btn("Create account",async()=>{if(document.getElementById("pw").value.length<10){msg.textContent="Password too short.";return}
-  const{error}=await sb.auth.signUp({email:v("em"),password:document.getElementById("pw").value});msg.textContent=error?"Could not sign up.":"Check your email to confirm, then log in."},true),msg))}
+  const{error}=await sb.auth.signUp({email:v("em"),password:document.getElementById("pw").value});msg.textContent=error?("Could not sign up: "+error.message):"Check your email to confirm, then log in."},true),msg))}
 async function proView(u){const{data:p}=await sb.from("providers").select("*,provider_categories(category)").eq("id",u.id).maybeSingle();
  M.replaceChildren(btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
  if(p){M.append(card(el("h3",p.biz),el("p","Status: "+p.status.toUpperCase(),p.status==="approved"?"ok":"mut"),
