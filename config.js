@@ -2,3 +2,4 @@
 window.CFG={url:"https://gukfjuijlpdxzkyriijl.supabase.co",key:"sb_publishable_SiFzXn4g9FpG3xi6Wk-5NA_wF3XW5zb"};
 window.CLUSTERS=[["hercules","pretoria west","danville","atteridgeville","elandspoort"],["centurion","irene","lyttelton"]];
 window.CATS=["Plumber","Electrician","Painter","Gardener","Cleaner","Handyman","Photographer","Social media marketer","Web designer","Printing & signage"];
+window.CFG.turnstile="0x4AAAAAAFNsG7ns8pg1S50c";
