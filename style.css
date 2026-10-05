@@ -9,3 +9,5 @@ input,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-radius:
 .mut{color:var(--mut);font-size:.9rem}.ok{color:#16a34a;font-weight:700}label{font-weight:600}.row label{font-weight:400;margin-right:10px;display:inline-block}.row input{width:auto;margin:0 4px 0 0}
 
 footer{text-align:center;padding:20px;font-size:.9rem;color:var(--mut)}footer a{color:var(--ac)}
+
+select{width:100%;padding:11px;border:1px solid var(--bd);border-radius:10px;font:inherit;background:var(--bg);color:var(--fg);margin:4px 0 10px}
