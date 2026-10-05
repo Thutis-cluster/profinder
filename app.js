@@ -11,14 +11,23 @@ function initTS(){var k=CFG.turnstile;if(!k||k.indexOf("YOUR")===0)return;
  function go(){turnstile.render("#ts",{sitekey:k,callback:function(t){TS.t=t},"expired-callback":function(){TS.t=undefined}})}
  if(window.turnstile)return go();
  var sc=document.createElement("script");sc.src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";sc.onload=go;document.head.append(sc)}
-async function boot(){M.replaceChildren();const{data:{session}}=await sb.auth.getSession();if(!session)return authView();
+var REC=false;
+sb.auth.onAuthStateChange(function(ev){if(ev==="PASSWORD_RECOVERY"){REC=true;resetView()}});
+function resetView(){const msg=el("div",null,"mut");M.replaceChildren(card(el("h3","Set a new password"),field("New password (min 10 characters)","np","password"),
+ btn("Save password",async()=>{const p=document.getElementById("np").value;if(p.length<10){msg.textContent="Password too short.";return}
+  const{error}=await sb.auth.updateUser({password:p});if(error){msg.textContent="Could not update: "+error.message;return}REC=false;boot()}),msg))}
+function legal(){const p=el("p",null,"mut"),a=el("a","Terms","");a.href="terms.html";a.target="_blank";const b=el("a","Privacy Policy","");b.href="privacy.html";b.target="_blank";
+ p.append("By submitting, you agree to our ",a," and ",b,", and confirm your references agreed to be contacted.");return p}
+async function boot(){M.replaceChildren();const{data:{session}}=await sb.auth.getSession();if(REC)return resetView();if(!session)return authView();
  const{data:adm}=await sb.from("admins").select("user_id").maybeSingle();adm?adminView():proView(session.user)}
 function authView(){const msg=el("div",null,"mut");
  M.append(card(el("h3","Join or log in"),el("p","Providers must create an account and be verified before appearing in search.","mut"),
  field("Email","em","email"),field("Password (min 10 characters)","pw","password"),
  btn("Log in",async()=>{const{error}=await sb.auth.signInWithPassword({email:v("em"),password:document.getElementById("pw").value,options:{captchaToken:TS.t}});rs();error?msg.textContent="Login failed: "+error.message:boot()}),document.createTextNode(" "),
  btn("Create account",async()=>{if(document.getElementById("pw").value.length<10){msg.textContent="Password too short.";return}
-  const{error}=await sb.auth.signUp({email:v("em"),password:document.getElementById("pw").value,options:{captchaToken:TS.t}});rs();msg.textContent=error?("Could not sign up: "+error.message):"Check your email to confirm, then log in."},true),msg));initTS()}
+  const{error}=await sb.auth.signUp({email:v("em"),password:document.getElementById("pw").value,options:{captchaToken:TS.t}});rs();msg.textContent=error?("Could not sign up: "+error.message):"Check your email to confirm, then log in."},true),document.createTextNode(" "),btn("Forgot password",async()=>{if(!v("em")){msg.textContent="Enter your email first.";return}
+  const{error}=await sb.auth.resetPasswordForEmail(v("em"),{redirectTo:location.origin+"/app.html",captchaToken:TS.t});rs();
+  msg.textContent=error?("Could not send reset: "+error.message):"If that email has an account, a reset link is on its way."},true),msg));initTS()}
 async function proView(u){const{data:p}=await sb.from("providers").select("*,provider_categories(category)").eq("id",u.id).maybeSingle();
  M.replaceChildren(btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
  if(p){M.append(card(el("h3",p.biz),el("p","Status: "+p.status.toUpperCase(),p.status==="approved"?"ok":"mut"),
@@ -28,7 +37,7 @@ async function proView(u){const{data:p}=await sb.from("providers").select("*,pro
   el("label","Categories"),cats,field("Describe your services","d",null,true),field("Business reg. or trade certificate no. (CIPC, PIRB, Wireman's licence...)","r"),
   field("Reference 1 (name and number)","r1"),field("Reference 2 (name and number)","r2"),
   field("Upload ID + proof of trade (PDF/JPG, max 5MB)","f","file"),
-  btn("Submit application",async()=>{
+  legal(),btn("Submit application",async()=>{
    const sel=[...cats.querySelectorAll("input:checked")].map(i=>i.value),file=document.getElementById("f").files[0];
    if(!v("n")||!v("b")||!v("p")||!v("a")||!v("d")||!v("r")||!v("r1")||!v("r2")||!sel.length||!file){msg.textContent="Please complete every field and upload a document.";return}
    if(file.size>5e6||!/^(application\/pdf|image\/(jpeg|png))$/.test(file.type)){msg.textContent="Document must be PDF/JPG/PNG under 5MB.";return}
