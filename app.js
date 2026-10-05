@@ -47,7 +47,8 @@ async function proView(u){const{data:p}=await sb.from("providers").select("*,pro
    await sb.from("provider_private").insert({provider_id:u.id,email:u.email,reg_no:v("r"),ref1:v("r1"),ref2:v("r2"),doc_path:path});
    await sb.from("provider_categories").insert(sel.map(c=>({provider_id:u.id,category:c})));proView(u)}),msg);
  M.append(f)}
-async function adminView(){M.replaceChildren(el("h3","Admin: pending applications"),btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
+async function adminView(){const{count}=await sb.from("reports").select("id",{count:"exact",head:true});
+ M.replaceChildren(el("h3","Admin: pending applications"),btn("Reports ("+(count||0)+")",reportsView),document.createTextNode(" "),btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
  const{data}=await sb.from("providers").select("*,provider_categories(category),provider_private(*)").eq("status","pending");
  if(!data.length)M.append(card(el("p","Nothing waiting.")));
  const L={id:"ID document checked",phone:"Phone verified (called)",proof:"Trade/business registration confirmed",refs:"Both references called"};
@@ -58,4 +59,16 @@ async function adminView(){M.replaceChildren(el("h3","Admin: pending application
    i.onchange=async()=>{ch[k]=i.checked;await sb.from("provider_private").update({checks:ch}).eq("provider_id",p.id)};d.append(i," "+L[k]);c.append(d)});
   c.append(btn("Approve",async()=>{const{error}=await sb.rpc("approve_provider",{pid:p.id});error?alert("Tick all four checks first."):adminView()}),document.createTextNode(" "),
    btn("Reject",async()=>{await sb.from("providers").update({status:"rejected"}).eq("id",p.id);adminView()},true));M.append(c)}}
+async function reportsView(){
+ M.replaceChildren(el("h3","Admin: reports"),btn("< Applications",adminView,true),document.createTextNode(" "),btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
+ const{data,error}=await sb.from("reports").select("id,reason,created_at,providers(id,biz,name,phone,status)").order("created_at",{ascending:false});
+ if(error){M.append(card(el("p","Could not load reports. Did you run the reports SQL in Supabase?")));return}
+ if(!data.length){M.append(card(el("p","No reports.")));return}
+ const n={};data.forEach(r=>{if(r.providers)n[r.providers.id]=(n[r.providers.id]||0)+1});
+ data.forEach(r=>{const p=r.providers;if(!p)return;
+  const c=card(el("b",p.biz+" ("+p.status+")"),el("div",p.name+" · "+p.phone+" · "+n[p.id]+" report(s) in total","mut"),
+   el("p",'"'+r.reason+'"'),el("div",new Date(r.created_at).toLocaleString(),"mut"));
+  if(p.status==="approved")c.append(btn("Suspend provider",async()=>{if(confirm("Remove "+p.biz+" from search?")){await sb.from("providers").update({status:"suspended"}).eq("id",p.id);reportsView()}}),document.createTextNode(" "));
+  if(p.status==="suspended")c.append(btn("Reinstate",async()=>{await sb.from("providers").update({status:"approved"}).eq("id",p.id);reportsView()}),document.createTextNode(" "));
+  c.append(btn("Dismiss report",async()=>{await sb.from("reports").delete().eq("id",r.id);reportsView()},true));M.append(c)})}
 boot();
