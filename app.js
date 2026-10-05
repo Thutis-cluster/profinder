@@ -33,7 +33,7 @@ function fv(l,id,val,ta){const w=field(l,id,null,ta);w.querySelector("#"+id).val
 function myListing(u,p){
  const mut=p.status==="approved"?"ok":"mut",cur=p.provider_categories.map(c=>c.category);
  const info={pending:"We are verifying your details. You will appear in search once approved.",approved:"You are live in search.",rejected:"Your application was not approved. Contact info@kasituwebs.co.za.",suspended:"Your listing is suspended. Contact info@kasituwebs.co.za."}[p.status]||"";
- M.append(card(el("h3",p.biz),el("p","Status: "+p.status.toUpperCase(),mut),el("p",info,"mut")));
+ M.append(card(el("h3",p.biz),el("p","Status: "+p.status.toUpperCase(),mut),el("p",info,"mut")));if(p.status==="approved")replies(u,p);
  if(p.status!=="pending"&&p.status!=="approved")return;
  const msg=el("div",null,"mut"),cats=el("div",null,"row");
  CATS.forEach(c=>{const l=el("label"),i=el("input");i.type="checkbox";i.value=c;i.checked=cur.includes(c);l.append(i,c);cats.append(l)});
@@ -73,8 +73,8 @@ async function proView(u){const{data:p}=await sb.from("providers").select("*,pro
    await sb.from("provider_private").insert({provider_id:u.id,email:u.email,reg_no:v("r"),ref1:v("r1"),ref2:v("r2"),doc_path:path});
    await sb.from("provider_categories").insert(sel.map(c=>({provider_id:u.id,category:c})));proView(u)}),msg);
  M.append(f)}
-async function adminView(){const{count}=await sb.from("reports").select("id",{count:"exact",head:true});
- M.replaceChildren(el("h3","Admin: pending applications"),btn("Reports ("+(count||0)+")",reportsView),document.createTextNode(" "),btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
+async function adminView(){const{count}=await sb.from("reports").select("id",{count:"exact",head:true});const{count:rc}=await sb.from("reviews").select("id",{count:"exact",head:true}).eq("status","pending");
+ M.replaceChildren(el("h3","Admin: pending applications"),btn("Reports ("+(count||0)+")",reportsView),document.createTextNode(" "),btn("Reviews ("+(rc||0)+")",reviewsAdmin),document.createTextNode(" "),btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
  const{data}=await sb.from("providers").select("*,provider_categories(category),provider_private(*)").eq("status","pending");
  if(!data.length)M.append(card(el("p","Nothing waiting.")));
  const L={id:"ID document checked",phone:"Phone verified (called)",proof:"Trade/business registration confirmed",refs:"Both references called"};
@@ -85,6 +85,19 @@ async function adminView(){const{count}=await sb.from("reports").select("id",{co
    i.onchange=async()=>{ch[k]=i.checked;await sb.from("provider_private").update({checks:ch}).eq("provider_id",p.id)};d.append(i," "+L[k]);c.append(d)});
   c.append(btn("Approve",async()=>{const{error}=await sb.rpc("approve_provider",{pid:p.id});error?alert("Tick all four checks first."):adminView()}),document.createTextNode(" "),
    btn("Reject",async()=>{await sb.from("providers").update({status:"rejected"}).eq("id",p.id);adminView()},true));M.append(c)}}
+async function reviewsAdmin(){
+ M.replaceChildren(el("h3","Admin: reviews waiting"),btn("< Applications",adminView,true),document.createTextNode(" "),btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
+ const{data,error}=await sb.from("reviews").select("id,author_name,rating,comment,created_at,providers(biz)").eq("status","pending").order("created_at");
+ if(error){M.append(card(el("p","Could not load reviews. Did you run the reviews SQL?")));return}
+ if(!data.length){M.append(card(el("p","No reviews waiting.")));return}
+ data.forEach(r=>{const c=card(el("b",(r.providers?r.providers.biz:"?")+": "+"\u2605".repeat(r.rating)),el("div","By "+r.author_name+" · "+new Date(r.created_at).toLocaleDateString("en-ZA"),"mut"),el("p",r.comment));
+  const set=st=>async()=>{await sb.from("reviews").update({status:st}).eq("id",r.id);reviewsAdmin()};
+  c.append(btn("Approve",set("approved")),document.createTextNode(" "),btn("Reject",set("rejected"),true));M.append(c)})}
+async function replies(u,p){
+ const{data}=await sb.from("reviews").select("id,author_name,rating,comment,reply").eq("provider_id",p.id).eq("status","approved").order("created_at",{ascending:false});
+ if(!data||!data.length)return;M.append(el("h3","Reviews of my business"));
+ data.forEach(r=>{const t=el("textarea");t.value=r.reply||"";t.maxLength=500;t.placeholder="Write a public reply (optional)";const m=el("div",null,"mut");
+  M.append(card(el("b","\u2605".repeat(r.rating)+"  "+r.author_name),el("p",r.comment),t,btn("Save reply",async()=>{const{error}=await sb.rpc("reply_review",{rid:r.id,txt:t.value});m.textContent=error?"Could not save.":"Saved."}),m))})}
 async function reportsView(){
  M.replaceChildren(el("h3","Admin: reports"),btn("< Applications",adminView,true),document.createTextNode(" "),btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
  const{data,error}=await sb.from("reports").select("id,reason,created_at,providers(id,biz,name,phone,status)").order("created_at",{ascending:false});
