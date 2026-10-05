@@ -4,11 +4,12 @@ function field(l,id,type,ta){const w=el("div");w.append(el("label",l));const i=e
 function card(...k){const c=el("div",null,"card");c.append(...k);return c}
 function btn(t,f,alt){const b=el("button",t,"btn"+(alt?" alt":""));b.onclick=f;return b}
 const v=id=>document.getElementById(id).value.trim();
-var TS={t:undefined};
-function rs(){TS.t=undefined;if(window.turnstile)try{turnstile.reset()}catch(x){}}
+var TS={t:undefined,w:undefined};
+function wait(m){var k=CFG.turnstile;if(k&&k.indexOf("YOUR")!==0&&!TS.t){m.textContent="Please wait a moment for the security check above to finish, then try again.";return true}return false}
+function rs(){TS.t=undefined;if(window.turnstile&&TS.w!==undefined)try{turnstile.reset(TS.w)}catch(x){}}
 function initTS(){var k=CFG.turnstile;if(!k||k.indexOf("YOUR")===0)return;
  var d=el("div");d.id="ts";M.firstChild.insertBefore(d,M.firstChild.lastChild);
- function go(){turnstile.render("#ts",{sitekey:k,callback:function(t){TS.t=t},"expired-callback":function(){TS.t=undefined}})}
+ function go(){if(TS.w!==undefined)try{turnstile.remove(TS.w)}catch(x){}TS.w=turnstile.render("#ts",{sitekey:k,callback:function(t){TS.t=t},"expired-callback":function(){TS.t=undefined}})}
  if(window.turnstile)return go();
  var sc=document.createElement("script");sc.src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";sc.onload=go;document.head.append(sc)}
 var REC=false;
@@ -23,9 +24,9 @@ async function boot(){M.replaceChildren();const{data:{session}}=await sb.auth.ge
 function authView(){const msg=el("div",null,"mut");
  M.append(card(el("h3","Join or log in"),el("p","Providers must create an account and be verified before appearing in search.","mut"),
  field("Email","em","email"),field("Password (min 10 characters)","pw","password"),
- btn("Log in",async()=>{const{error}=await sb.auth.signInWithPassword({email:v("em"),password:document.getElementById("pw").value,options:{captchaToken:TS.t}});rs();error?msg.textContent="Login failed: "+error.message:boot()}),document.createTextNode(" "),
- btn("Create account",async()=>{if(document.getElementById("pw").value.length<10){msg.textContent="Password too short.";return}
-  const{error}=await sb.auth.signUp({email:v("em"),password:document.getElementById("pw").value,options:{captchaToken:TS.t}});rs();msg.textContent=error?("Could not sign up: "+error.message):"Check your email to confirm, then log in."},true),document.createTextNode(" "),btn("Forgot password",async()=>{if(!v("em")){msg.textContent="Enter your email first.";return}
+ btn("Log in",async()=>{if(wait(msg))return;const{error}=await sb.auth.signInWithPassword({email:v("em"),password:document.getElementById("pw").value,options:{captchaToken:TS.t}});rs();error?msg.textContent="Login failed: "+error.message:boot()}),document.createTextNode(" "),
+ btn("Create account",async()=>{if(wait(msg))return;if(document.getElementById("pw").value.length<10){msg.textContent="Password too short.";return}
+  const{error}=await sb.auth.signUp({email:v("em"),password:document.getElementById("pw").value,options:{captchaToken:TS.t}});rs();msg.textContent=error?("Could not sign up: "+error.message):"Check your email to confirm, then log in."},true),document.createTextNode(" "),btn("Forgot password",async()=>{if(wait(msg))return;if(!v("em")){msg.textContent="Enter your email first.";return}
   const{error}=await sb.auth.resetPasswordForEmail(v("em"),{redirectTo:location.origin+"/app.html",captchaToken:TS.t});rs();
   msg.textContent=error?("Could not send reset: "+error.message):"If that email has an account, a reset link is on its way."},true),msg));initTS()}
 async function proView(u){const{data:p}=await sb.from("providers").select("*,provider_categories(category)").eq("id",u.id).maybeSingle();
