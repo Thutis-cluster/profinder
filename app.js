@@ -49,8 +49,14 @@ function myListing(u,p){
    if(rem.length)await sb.from("provider_categories").delete().eq("provider_id",u.id).in("category",rem);
    if(add.length)await sb.from("provider_categories").insert(add.map(c=>({provider_id:u.id,category:c})));
    M.replaceChildren(btn("Log out",async()=>{await sb.auth.signOut();boot()},true));proView(u)}),msg))}
+function delBtn(u){return btn("Delete my account and data",async()=>{
+ if(!confirm("This permanently deletes your account, your listing and your uploaded documents. It cannot be undone. Continue?"))return;
+ if(prompt("Type DELETE to confirm")!=="DELETE")return;
+ const{data:f}=await sb.storage.from("docs").list(u.id);if(f&&f.length)await sb.storage.from("docs").remove(f.map(x=>u.id+"/"+x.name));
+ const{error}=await sb.rpc("delete_my_account");if(error){alert("Could not delete automatically. Please email info@kasituwebs.co.za.");return}
+ await sb.auth.signOut();boot()},true)}
 async function proView(u){const{data:p}=await sb.from("providers").select("*,provider_categories(category)").eq("id",u.id).maybeSingle();
- M.replaceChildren(btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
+ M.replaceChildren(btn("Log out",async()=>{await sb.auth.signOut();boot()},true),document.createTextNode(" "),delBtn(u));
  if(p)return myListing(u,p);
  const msg=el("div",null,"mut"),cats=el("div",null,"row");CATS.forEach(c=>{const l=el("label"),i=el("input");i.type="checkbox";i.value=c;l.append(i,c);cats.append(l)});
  const f=card(el("h3","Provider application"),field("Full name","n"),field("Business name","b"),field("Cell number","p"),field("Main area (e.g. Hercules)","a"),
