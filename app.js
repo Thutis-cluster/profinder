@@ -29,10 +29,29 @@ function authView(){const msg=el("div",null,"mut");
   const{error}=await sb.auth.signUp({email:v("em"),password:document.getElementById("pw").value,options:{captchaToken:TS.t}});rs();msg.textContent=error?("Could not sign up: "+error.message):"Check your email to confirm, then log in."},true),document.createTextNode(" "),btn("Forgot password",async()=>{if(wait(msg))return;if(!v("em")){msg.textContent="Enter your email first.";return}
   const{error}=await sb.auth.resetPasswordForEmail(v("em"),{redirectTo:location.origin+"/app.html",captchaToken:TS.t});rs();
   msg.textContent=error?("Could not send reset: "+error.message):"If that email has an account, a reset link is on its way."},true),msg));initTS()}
+function fv(l,id,val,ta){const w=field(l,id,null,ta);w.querySelector("#"+id).value=val||"";return w}
+function myListing(u,p){
+ const mut=p.status==="approved"?"ok":"mut",cur=p.provider_categories.map(c=>c.category);
+ const info={pending:"We are verifying your details. You will appear in search once approved.",approved:"You are live in search.",rejected:"Your application was not approved. Contact info@kasituwebs.co.za.",suspended:"Your listing is suspended. Contact info@kasituwebs.co.za."}[p.status]||"";
+ M.append(card(el("h3",p.biz),el("p","Status: "+p.status.toUpperCase(),mut),el("p",info,"mut")));
+ if(p.status!=="pending"&&p.status!=="approved")return;
+ const msg=el("div",null,"mut"),cats=el("div",null,"row");
+ CATS.forEach(c=>{const l=el("label"),i=el("input");i.type="checkbox";i.value=c;i.checked=cur.includes(c);l.append(i,c);cats.append(l)});
+ M.append(card(el("h3","My listing"),el("p","Changing your business name, name, number, area, description or categories sends your listing back for review. It will not show in search until we approve it again.","mut"),
+  fv("Business name","mb",p.biz),fv("Full name","mn",p.name),fv("Cell number","mp",p.phone),fv("Main area","ma",p.area),el("label","Categories"),cats,fv("Describe your services","md",p.description,true),
+  btn("Save changes",async()=>{
+   const sel=[...cats.querySelectorAll("input:checked")].map(i=>i.value),b=v("mb"),n=v("mn"),ph=v("mp"),a=v("ma"),d=v("md");
+   if(!b||!n||!ph||!a||d.length<10||!sel.length){msg.textContent="Please complete every field (description at least 10 characters) and pick a category.";return}
+   if(!/^[0-9+ ]{9,16}$/.test(ph)){msg.textContent="Cell number: digits, spaces and + only.";return}
+   let r=await sb.from("providers").update({biz:b,name:n,phone:ph,area:a,description:d}).eq("id",u.id);
+   if(r.error){msg.textContent="Could not save. Check your details.";return}
+   const rem=cur.filter(c=>!sel.includes(c)),add=sel.filter(c=>!cur.includes(c));
+   if(rem.length)await sb.from("provider_categories").delete().eq("provider_id",u.id).in("category",rem);
+   if(add.length)await sb.from("provider_categories").insert(add.map(c=>({provider_id:u.id,category:c})));
+   M.replaceChildren(btn("Log out",async()=>{await sb.auth.signOut();boot()},true));proView(u)}),msg))}
 async function proView(u){const{data:p}=await sb.from("providers").select("*,provider_categories(category)").eq("id",u.id).maybeSingle();
  M.replaceChildren(btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
- if(p){M.append(card(el("h3",p.biz),el("p","Status: "+p.status.toUpperCase(),p.status==="approved"?"ok":"mut"),
-  el("p",p.status==="pending"?"We are verifying your details. You will appear in search once approved.":p.status==="approved"?"You are live in search.":"Your listing is not active. Contact support.","mut")));return}
+ if(p)return myListing(u,p);
  const msg=el("div",null,"mut"),cats=el("div",null,"row");CATS.forEach(c=>{const l=el("label"),i=el("input");i.type="checkbox";i.value=c;l.append(i,c);cats.append(l)});
  const f=card(el("h3","Provider application"),field("Full name","n"),field("Business name","b"),field("Cell number","p"),field("Main area (e.g. Hercules)","a"),
   el("label","Categories"),cats,field("Describe your services","d",null,true),field("Business reg. or trade certificate no. (CIPC, PIRB, Wireman's licence...)","r"),
