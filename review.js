@@ -10,7 +10,8 @@ function initTS(host){var k=CFG.turnstile;if(!k||k.indexOf("YOUR")===0)return;va
 async function load(){
  const{data:p}=await sb.from("providers").select("id,biz,area").eq("id",PID||"").eq("status","approved").maybeSingle();
  if(!p){M.append(card(el("p","Listing not found.")));return}
- const{data:rv}=await sb.from("reviews").select("author_name,rating,comment,reply,created_at").eq("provider_id",p.id).eq("status","approved").order("created_at",{ascending:false});
+ const{data:rv,error:re}=await sb.from("reviews").select("author_name,rating,comment,reply,created_at").eq("provider_id",p.id).eq("status","approved").order("created_at",{ascending:false});
+ if(re||!rv){M.append(card(el("h3",p.biz),el("p","Reviews are not available right now. Please try again later.","mut")));return}
  const avg=rv.length?(rv.reduce((a,x)=>a+x.rating,0)/rv.length).toFixed(1):null;
  M.append(card(el("h3",p.biz),el("div",p.area+(avg?" · \u2605 "+avg+" ("+rv.length+" review"+(rv.length>1?"s":"")+")":" · No reviews yet"),"mut")));
  rv.forEach(x=>{const c=card(el("b",stars(x.rating)+"  "+x.author_name),el("div",new Date(x.created_at).toLocaleDateString("en-ZA"),"mut"),el("p",x.comment));
