@@ -74,7 +74,7 @@ async function proView(u){const{data:p}=await sb.from("providers").select("*,pro
    await sb.from("provider_categories").insert(sel.map(c=>({provider_id:u.id,category:c})));proView(u)}),msg);
  M.append(f)}
 async function adminView(){const{count}=await sb.from("reports").select("id",{count:"exact",head:true});const{count:rc}=await sb.from("reviews").select("id",{count:"exact",head:true}).eq("status","pending");
- M.replaceChildren(el("h3","Admin: pending applications"),btn("Reports ("+(count||0)+")",reportsView),document.createTextNode(" "),btn("Reviews ("+(rc||0)+")",reviewsAdmin),document.createTextNode(" "),btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
+ M.replaceChildren(el("h3","Admin: pending applications"),btn("Reports ("+(count||0)+")",reportsView),document.createTextNode(" "),btn("Reviews ("+(rc||0)+")",reviewsAdmin),document.createTextNode(" "),btn("Featured",featuredAdmin,true),document.createTextNode(" "),btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
  const{data}=await sb.from("providers").select("*,provider_categories(category),provider_private(*)").eq("status","pending");
  if(!data.length)M.append(card(el("p","Nothing waiting.")));
  const L={id:"ID document checked",phone:"Phone verified (called)",proof:"Trade/business registration confirmed",refs:"Both references called"};
@@ -98,6 +98,17 @@ async function replies(u,p){
  if(!data||!data.length)return;M.append(el("h3","Reviews of my business"));
  data.forEach(r=>{const t=el("textarea");t.value=r.reply||"";t.maxLength=500;t.placeholder="Write a public reply (optional)";const m=el("div",null,"mut");
   M.append(card(el("b","\u2605".repeat(r.rating)+"  "+r.author_name),el("p",r.comment),t,btn("Save reply",async()=>{const{error}=await sb.rpc("reply_review",{rid:r.id,txt:t.value});m.textContent=error?"Could not save.":"Saved."}),m))})}
+async function featuredAdmin(){
+ M.replaceChildren(el("h3","Admin: featured listings"),el("p","Only feature a provider after they have paid. Featured listings show higher in search (max 3 per search) and are labelled Featured.","mut"),btn("< Applications",adminView,true),document.createTextNode(" "),btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
+ const{data,error}=await sb.from("providers").select("id,biz,area,plan,featured_until").eq("status","approved").order("biz");
+ if(error){M.append(card(el("p","Could not load. Did you run the featured SQL?")));return}
+ if(!data.length){M.append(card(el("p","No approved providers.")));return}
+ data.forEach(p=>{const t=p.featured_until?new Date(p.featured_until).getTime():0,on=p.plan==="featured"&&t>Date.now();
+  const c=card(el("b",p.biz),el("div",p.area+" · "+(on?"Featured until "+new Date(t).toLocaleDateString("en-ZA"):"Free"),on?"ok":"mut"));
+  const go=()=>async()=>{const until=new Date(Math.max(Date.now(),t)+30*864e5).toISOString();await sb.from("providers").update({plan:"featured",featured_until:until}).eq("id",p.id);featuredAdmin()};
+  c.append(btn(on?"Extend 30 days":"Feature for 30 days",go()));
+  if(on)c.append(document.createTextNode(" "),btn("Remove",async()=>{await sb.from("providers").update({plan:"free",featured_until:null}).eq("id",p.id);featuredAdmin()},true));
+  M.append(c)})}
 async function reportsView(){
  M.replaceChildren(el("h3","Admin: reports"),btn("< Applications",adminView,true),document.createTextNode(" "),btn("Log out",async()=>{await sb.auth.signOut();boot()},true));
  const{data,error}=await sb.from("reports").select("id,reason,created_at,providers(id,biz,name,phone,status)").order("created_at",{ascending:false});
