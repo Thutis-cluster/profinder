@@ -10,6 +10,7 @@ function initTS(host){var k=CFG.turnstile;if(!k||k.indexOf("YOUR")===0)return;va
 async function load(){
  const{data:p}=await sb.from("providers").select("id,biz,area").eq("id",PID||"").eq("status","approved").maybeSingle();
  if(!p){M.append(card(el("p","Listing not found.")));return}
+ sb.from("events").insert({provider_id:p.id,kind:"view"}).then(()=>{},()=>{});
  const{data:rv,error:re}=await sb.from("reviews").select("author_name,rating,comment,reply,created_at").eq("provider_id",p.id).eq("status","approved").order("created_at",{ascending:false});
  if(re||!rv){M.append(card(el("h3",p.biz),el("p","Reviews are not available right now. Please try again later.","mut")));return}
  const avg=rv.length?(rv.reduce((a,x)=>a+x.rating,0)/rv.length).toFixed(1):null;
