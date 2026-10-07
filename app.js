@@ -30,15 +30,20 @@ function authView(){const msg=el("div",null,"mut");
   const{error}=await sb.auth.resetPasswordForEmail(v("em"),{redirectTo:location.origin+"/app.html",captchaToken:TS.t});rs();
   msg.textContent=error?("Could not send reset: "+error.message):"If that email has an account, a reset link is on its way."},true),msg));initTS()}
 function fv(l,id,val,ta){const w=field(l,id,null,ta);w.querySelector("#"+id).value=val||"";return w}
+function stats(){const sc=el("p","Loading...","mut");M.append(card(el("h3","Last 30 days"),sc));
+ sb.rpc("my_stats").then(({data,error})=>{if(error||!data){sc.textContent="Not available yet.";return}
+  const g=k=>(data.find(r=>r.kind===k)||{n:0}).n;sc.textContent=g("view")+" visits to your reviews page · "+g("call")+" Call clicks · "+g("whatsapp")+" WhatsApp clicks"})}
 function myListing(u,p){
  const mut=p.status==="approved"?"ok":"mut",cur=p.provider_categories.map(c=>c.category);
  const info={pending:"We are verifying your details. You will appear in search once approved.",approved:"You are live in search.",rejected:"Your application was not approved. Contact info@kasituwebs.co.za.",suspended:"Your listing is suspended. Contact info@kasituwebs.co.za."}[p.status]||"";
- M.append(card(el("h3",p.biz),el("p","Status: "+p.status.toUpperCase(),mut),el("p",info,"mut")));if(p.status==="approved")replies(u,p);
+ M.append(card(el("h3",p.biz),el("p","Status: "+p.status.toUpperCase(),mut),el("p",info,"mut")));if(p.status==="approved"){stats();replies(u,p)}
  if(p.status!=="pending"&&p.status!=="approved")return;
  const msg=el("div",null,"mut"),cats=el("div",null,"row");
  CATS.forEach(c=>{const l=el("label"),i=el("input");i.type="checkbox";i.value=c;i.checked=cur.includes(c);l.append(i,c);cats.append(l)});
+ const feat=p.plan==="featured"&&p.featured_until&&new Date(p.featured_until).getTime()>Date.now(),curA=(p.provider_areas||[]).map(q=>q.area);
+ const af=feat?fv("Extra areas you serve (up to 5, separated by commas)","mx",curA.join(", ")):el("p","Want to be found in more areas? Extra service areas come with a Featured plan. Email info@kasituwebs.co.za.","mut");
  M.append(card(el("h3","My listing"),el("p","Changing your business name, name, number, area, description or categories sends your listing back for review. It will not show in search until we approve it again.","mut"),
-  fv("Business name","mb",p.biz),fv("Full name","mn",p.name),fv("Cell number","mp",p.phone),fv("Main area","ma",p.area),el("label","Categories"),cats,fv("Describe your services","md",p.description,true),
+  fv("Business name","mb",p.biz),fv("Full name","mn",p.name),fv("Cell number","mp",p.phone),fv("Main area","ma",p.area),af,el("label","Categories"),cats,fv("Describe your services","md",p.description,true),
   btn("Save changes",async()=>{
    const sel=[...cats.querySelectorAll("input:checked")].map(i=>i.value),b=v("mb"),n=v("mn"),ph=v("mp"),a=v("ma"),d=v("md");
    if(!b||!n||!ph||!a||d.length<10||!sel.length){msg.textContent="Please complete every field (description at least 10 characters) and pick a category.";return}
@@ -48,6 +53,9 @@ function myListing(u,p){
    const rem=cur.filter(c=>!sel.includes(c)),add=sel.filter(c=>!cur.includes(c));
    if(rem.length)await sb.from("provider_categories").delete().eq("provider_id",u.id).in("category",rem);
    if(add.length)await sb.from("provider_categories").insert(add.map(c=>({provider_id:u.id,category:c})));
+   if(feat){const xs=[...new Set(v("mx").split(",").map(z=>z.trim()).filter(z=>z.length>=2&&z.length<=60))].slice(0,5),ra=curA.filter(z=>!xs.includes(z)),aa=xs.filter(z=>!curA.includes(z));
+    if(ra.length)await sb.from("provider_areas").delete().eq("provider_id",u.id).in("area",ra);
+    if(aa.length)await sb.from("provider_areas").insert(aa.map(z=>({provider_id:u.id,area:z})))}
    M.replaceChildren(btn("Log out",async()=>{await sb.auth.signOut();boot()},true));proView(u)}),msg))}
 function delBtn(u){return btn("Delete my account and data",async()=>{
  if(!confirm("This permanently deletes your account, your listing and your uploaded documents. It cannot be undone. Continue?"))return;
@@ -55,7 +63,7 @@ function delBtn(u){return btn("Delete my account and data",async()=>{
  const{data:f}=await sb.storage.from("docs").list(u.id);if(f&&f.length)await sb.storage.from("docs").remove(f.map(x=>u.id+"/"+x.name));
  const{error}=await sb.rpc("delete_my_account");if(error){alert("Could not delete automatically. Please email info@kasituwebs.co.za.");return}
  await sb.auth.signOut();boot()},true)}
-async function proView(u){const{data:p}=await sb.from("providers").select("*,provider_categories(category)").eq("id",u.id).maybeSingle();
+async function proView(u){const{data:p}=await sb.from("providers").select("*,provider_categories(category),provider_areas(area)").eq("id",u.id).maybeSingle();
  M.replaceChildren(btn("Log out",async()=>{await sb.auth.signOut();boot()},true),document.createTextNode(" "),delBtn(u));
  if(p)return myListing(u,p);
  const msg=el("div",null,"mut"),cats=el("div",null,"row");CATS.forEach(c=>{const l=el("label"),i=el("input");i.type="checkbox";i.value=c;l.append(i,c);cats.append(l)});
